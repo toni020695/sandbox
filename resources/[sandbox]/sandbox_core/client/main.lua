@@ -15,6 +15,7 @@ local lastShotTimestamp = 0
 local bodyguards = {}
 local spawnSelectionOpen = false
 local hasOpenedInitialSpawn = false
+local controlBlockerThreadRunning = false
 local worldState = {
     weather = Config.World.defaultWeather,
     hour = Config.World.defaultHour,
@@ -132,6 +133,31 @@ local spawnLocations = (Config.Spawns and Config.Spawns.locations) or {}
 local openSpawnOnJoin = not (Config.Spawns and Config.Spawns.openOnJoin == false)
 local openSpawnOnRespawn = not (Config.Spawns and Config.Spawns.openOnRespawn == false)
 
+local function disableMenuControlsThisFrame()
+    DisableControlAction(0, 1, true)
+    DisableControlAction(0, 2, true)
+    DisableControlAction(0, 24, true)
+    DisableControlAction(0, 25, true)
+    DisableControlAction(0, 142, true)
+    DisableControlAction(0, 106, true)
+    DisableControlAction(0, 322, true)
+end
+
+local function ensureControlBlockerThread()
+    if controlBlockerThreadRunning then
+        return
+    end
+
+    controlBlockerThreadRunning = true
+    CreateThread(function()
+        while isMenuOpen or spawnSelectionOpen do
+            Wait(0)
+            disableMenuControlsThisFrame()
+        end
+        controlBlockerThreadRunning = false
+    end)
+end
+
 local function setPedInvisibleState(ped, enabled)
     SetEntityVisible(ped, not enabled, false)
     SetEntityAlpha(ped, enabled and 0 or 255, false)
@@ -208,6 +234,10 @@ local function setMenuState(enabled)
     SetNuiFocusKeepInput(false)
 
     if enabled then
+        ensureControlBlockerThread()
+    end
+
+    if enabled then
         SendNUIMessage({
             type = "openMenu",
             payload = {
@@ -244,6 +274,7 @@ local function setSpawnSelectorState(enabled)
     if enabled then
         SetNuiFocus(true, true)
         SetNuiFocusKeepInput(false)
+        ensureControlBlockerThread()
         SendNUIMessage({
             type = "openSpawnSelector",
             payload = {
@@ -563,15 +594,29 @@ local function restorePedWeapons(ped, weapons)
     end
 end
 
+local function weaponUsesAmmo(ped, weaponHash)
+    if not weaponHash or weaponHash == 0 then
+        return false
+    end
+
+    local success, maxAmmo = GetMaxAmmo(ped, weaponHash)
+    return success and maxAmmo and maxAmmo > 0
+end
+
 local function setInfiniteAmmoForCurrentWeapon(enabled)
     local ped = PlayerPedId()
     local _, currentWeapon = GetCurrentPedWeapon(ped, true)
-    SetPedInfiniteAmmoClip(ped, enabled)
+    local canUseAmmo = weaponUsesAmmo(ped, currentWeapon)
 
-    if currentWeapon and currentWeapon ~= 0 then
-        SetPedInfiniteAmmo(ped, enabled, currentWeapon)
+    SetPedInfiniteAmmoClip(ped, enabled and canUseAmmo)
+
+    if enabled and canUseAmmo then
+        SetPedInfiniteAmmo(ped, true, currentWeapon)
         lastTrackedWeapon = currentWeapon
-    elseif not enabled then
+    else
+        if lastTrackedWeapon and lastTrackedWeapon ~= 0 and weaponUsesAmmo(ped, lastTrackedWeapon) then
+            SetPedInfiniteAmmo(ped, false, lastTrackedWeapon)
+        end
         lastTrackedWeapon = 0
     end
 end
@@ -603,12 +648,7 @@ local function spawnVehicle(modelName)
     end
 
     local pedCoords = GetEntityCoords(ped)
-    local forward = GetEntityForwardVector(ped)
-    local spawnCoords = vector3(
-        pedCoords.x + forward.x * 6.0,
-        pedCoords.y + forward.y * 6.0,
-        pedCoords.z + 1.0
-    )
+    local spawnCoords = vector3(pedCoords.x, pedCoords.y, pedCoords.z + 0.2)
 
     local vehicle = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, GetEntityHeading(ped), true, false)
 
@@ -992,6 +1032,20 @@ CreateThread(function()
     end
 end)
 
+CreateThread(function()
+    while true do
+        Wait(150)
+        if (isMenuOpen or spawnSelectionOpen) and IsPedDeadOrDying(PlayerPedId(), true) then
+            if isMenuOpen then
+                setMenuState(false)
+            end
+            if spawnSelectionOpen then
+                setSpawnSelectorState(false)
+            end
+        end
+    end
+end)
+
 AddEventHandler("onResourceStop", function(resourceName)
     if resourceName ~= GetCurrentResourceName() then
         return
@@ -1014,28 +1068,15 @@ CreateThread(function()
         local ped = PlayerPedId()
         local _, currentWeapon = GetCurrentPedWeapon(ped, true)
         if currentWeapon and currentWeapon ~= 0 and currentWeapon ~= lastTrackedWeapon then
-            SetPedInfiniteAmmoClip(ped, true)
-            SetPedInfiniteAmmo(ped, true, currentWeapon)
+            if weaponUsesAmmo(ped, currentWeapon) then
+                SetPedInfiniteAmmoClip(ped, true)
+                SetPedInfiniteAmmo(ped, true, currentWeapon)
+            else
+                SetPedInfiniteAmmoClip(ped, false)
+            end
             lastTrackedWeapon = currentWeapon
         end
 
         ::continue::
-    end
-end)
-
-CreateThread(function()
-    while true do
-        Wait(0)
-        if isMenuOpen or spawnSelectionOpen then
-            DisableControlAction(0, 1, true)
-            DisableControlAction(0, 2, true)
-            DisableControlAction(0, 24, true)
-            DisableControlAction(0, 25, true)
-            DisableControlAction(0, 142, true)
-            DisableControlAction(0, 106, true)
-            DisableControlAction(0, 322, true)
-        else
-            Wait(500)
-        end
     end
 end)
