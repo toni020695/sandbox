@@ -2,11 +2,14 @@ const resourceName = typeof GetParentResourceName === "function" ? GetParentReso
 
 const state = {
     opened: false,
+    spawnOpen: false,
     activeTab: "tab-quick",
+    spawns: [],
     vehicles: [],
     weapons: [],
     weather: [],
     times: [],
+    bodyguardPresets: [],
     peds: [],
     world: {
         weather: "EXTRASUNNY",
@@ -15,11 +18,24 @@ const state = {
     },
     toggles: {
         invincible: false,
-        unlimitedAmmo: false
+        unlimitedAmmo: false,
+        superJump: false,
+        fastRun: false,
+        invisible: false,
+        vehicleGodmode: false,
+        explosiveAmmo: false,
+        fireAmmo: false,
+        noReload: false
     }
 };
 
 const app = document.getElementById("app");
+const spawnOverlay = document.getElementById("spawn-overlay");
+const spawnTitle = document.getElementById("spawn-title");
+const spawnDescription = document.getElementById("spawn-description");
+const spawnSearch = document.getElementById("spawn-search");
+const spawnList = document.getElementById("spawn-list");
+const spawnConfirm = document.getElementById("spawn-confirm");
 const menuTitle = document.getElementById("menu-title");
 const closeButton = document.getElementById("close-menu");
 const worldStatus = document.getElementById("world-status");
@@ -32,11 +48,27 @@ const elements = {
     spawnVehicle: document.getElementById("spawn-vehicle"),
     healButtons: document.querySelectorAll('[data-action="healPlayer"]'),
     invincibleToggle: document.getElementById("toggle-invincible"),
+    superJumpToggle: document.getElementById("toggle-super-jump"),
+    fastRunToggle: document.getElementById("toggle-fast-run"),
+    invisibleToggle: document.getElementById("toggle-invisible"),
+    teleportWaypointButtons: document.querySelectorAll('[data-action="tpWaypoint"]'),
+    wantedLevel: document.getElementById("wanted-level"),
+    wantedLevelLabel: document.getElementById("wanted-level-label"),
+    setWanted: document.getElementById("set-wanted"),
+    clearWanted: document.getElementById("clear-wanted"),
+    maxWanted: document.getElementById("max-wanted"),
     ammoToggle: document.getElementById("toggle-ammo"),
+    noReloadToggle: document.getElementById("toggle-no-reload"),
+    explosiveAmmoToggle: document.getElementById("toggle-explosive-ammo"),
+    fireAmmoToggle: document.getElementById("toggle-fire-ammo"),
     weaponSearch: document.getElementById("weapon-search"),
     weaponSelect: document.getElementById("weapon-select"),
     giveWeapon: document.getElementById("give-weapon"),
     giveAllWeaponsButtons: document.querySelectorAll('[data-action="giveAllWeapons"]'),
+    repairVehicle: document.getElementById("repair-vehicle"),
+    flipVehicle: document.getElementById("flip-vehicle"),
+    maxTuneVehicle: document.getElementById("max-tune-vehicle"),
+    vehicleGodmodeToggle: document.getElementById("toggle-vehicle-godmode"),
     weatherSelect: document.getElementById("weather-select"),
     setWeather: document.getElementById("set-weather"),
     timePresetSelect: document.getElementById("time-preset-select"),
@@ -44,6 +76,10 @@ const elements = {
     timeHour: document.getElementById("time-hour"),
     timeMinute: document.getElementById("time-minute"),
     setTimeCustom: document.getElementById("set-time-custom"),
+    bodyguardModel: document.getElementById("bodyguard-model"),
+    bodyguardCount: document.getElementById("bodyguard-count"),
+    spawnBodyguards: document.getElementById("spawn-bodyguards"),
+    clearBodyguards: document.getElementById("clear-bodyguards"),
     pedSearch: document.getElementById("ped-search"),
     pedSelect: document.getElementById("ped-select"),
     setPed: document.getElementById("set-ped")
@@ -73,6 +109,63 @@ const closeMenu = async () => {
     } catch (error) {
         console.error("[sandbox_core] Failed to close menu", error);
     }
+};
+
+const closeSpawnOverlay = () => {
+    state.spawnOpen = false;
+    spawnOverlay.classList.add("hidden");
+};
+
+const requestSpawnByIndex = async (index) => {
+    if (Number.isNaN(index)) {
+        return;
+    }
+
+    try {
+        await postNui("selectSpawn", { index });
+        closeSpawnOverlay();
+    } catch (error) {
+        console.error("[sandbox_core] Failed to confirm spawn", error);
+    }
+};
+
+const renderSpawnList = () => {
+    const query = (spawnSearch.value || "").trim().toLowerCase();
+    const filtered = state.spawns.filter((spawn) =>
+        spawn.label.toLowerCase().includes(query) || (spawn.description || "").toLowerCase().includes(query)
+    );
+
+    spawnList.innerHTML = "";
+
+    if (filtered.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "spawn-empty";
+        empty.textContent = "Keine Spawnpunkte gefunden.";
+        spawnList.appendChild(empty);
+        return;
+    }
+
+    filtered.forEach((spawn) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "spawn-item";
+        row.dataset.index = String(spawn.index);
+        row.innerHTML = `<strong>${spawn.label}</strong><span>${spawn.description || ""}</span>`;
+        row.addEventListener("click", () => {
+            requestSpawnByIndex(Number(spawn.index));
+        });
+        spawnList.appendChild(row);
+    });
+};
+
+const openSpawnOverlay = (payload = {}) => {
+    state.spawns = Array.isArray(payload.spawns) ? payload.spawns : [];
+    spawnTitle.textContent = payload.title || "Spawn Auswahl";
+    spawnDescription.textContent = payload.description || "Waehle einen Ort zum Spawnen.";
+    spawnSearch.value = "";
+    renderSpawnList();
+    state.spawnOpen = true;
+    spawnOverlay.classList.remove("hidden");
 };
 
 const setOpenState = (opened) => {
@@ -141,6 +234,19 @@ const renderTimePresets = () => {
     });
 };
 
+const renderWantedLabel = () => {
+    const level = Number(elements.wantedLevel.value || 0);
+    const suffix = level === 1 ? "Stern" : "Sterne";
+    elements.wantedLevelLabel.textContent = `Aktuelles Ziel: ${level} ${suffix}`;
+};
+
+const renderBodyguardPresets = () => {
+    fillSelect(elements.bodyguardModel, state.bodyguardPresets, {
+        mapLabel: (item) => item.label,
+        mapValue: (item) => item.model
+    });
+};
+
 const renderPeds = () => {
     const filteredPeds = filterBy(state.peds, elements.pedSearch.value, (item) => item.label);
     fillSelect(elements.pedSelect, filteredPeds, {
@@ -151,7 +257,14 @@ const renderPeds = () => {
 
 const renderToggles = () => {
     elements.invincibleToggle.checked = state.toggles.invincible === true;
+    elements.superJumpToggle.checked = state.toggles.superJump === true;
+    elements.fastRunToggle.checked = state.toggles.fastRun === true;
+    elements.invisibleToggle.checked = state.toggles.invisible === true;
     elements.ammoToggle.checked = state.toggles.unlimitedAmmo === true;
+    elements.noReloadToggle.checked = state.toggles.noReload === true;
+    elements.explosiveAmmoToggle.checked = state.toggles.explosiveAmmo === true;
+    elements.fireAmmoToggle.checked = state.toggles.fireAmmo === true;
+    elements.vehicleGodmodeToggle.checked = state.toggles.vehicleGodmode === true;
 };
 
 const renderWorldStatus = () => {
@@ -171,6 +284,7 @@ const openMenu = (payload = {}) => {
     state.weapons = Array.isArray(payload.weapons) ? payload.weapons : state.weapons;
     state.weather = Array.isArray(payload.weather) ? payload.weather : state.weather;
     state.times = Array.isArray(payload.times) ? payload.times : state.times;
+    state.bodyguardPresets = Array.isArray(payload.bodyguards) ? payload.bodyguards : state.bodyguardPresets;
     state.peds = Array.isArray(payload.peds) ? payload.peds : state.peds;
     state.world = payload.world || state.world;
     state.toggles = payload.toggles || state.toggles;
@@ -181,6 +295,8 @@ const openMenu = (payload = {}) => {
     renderWeapons();
     renderWeather();
     renderTimePresets();
+    renderBodyguardPresets();
+    renderWantedLabel();
     renderPeds();
     renderToggles();
     renderWorldStatus();
@@ -199,6 +315,29 @@ closeButton.addEventListener("click", () => {
 elements.vehicleSearch.addEventListener("input", renderVehicles);
 elements.weaponSearch.addEventListener("input", renderWeapons);
 elements.pedSearch.addEventListener("input", renderPeds);
+elements.wantedLevel.addEventListener("input", renderWantedLabel);
+spawnSearch.addEventListener("input", renderSpawnList);
+
+spawnConfirm.addEventListener("click", () => {
+    if (!state.spawnOpen) {
+        return;
+    }
+
+    const firstSpawn = state.spawns[0];
+    const selectedIndex = firstSpawn ? Number(firstSpawn.index) : NaN;
+    if (Number.isNaN(selectedIndex) && spawnList.firstElementChild) {
+        const fallback = Number(spawnList.firstElementChild.dataset.index);
+        if (!Number.isNaN(fallback)) {
+            requestSpawnByIndex(fallback);
+            return;
+        }
+    }
+
+    if (Number.isNaN(selectedIndex)) {
+        return;
+    }
+    requestSpawnByIndex(selectedIndex);
+});
 
 elements.spawnVehicle.addEventListener("click", () => {
     const model = elements.vehicleSelect.value;
@@ -215,8 +354,53 @@ elements.invincibleToggle.addEventListener("change", (event) => {
     sendAction("setInvincible", { enabled: event.target.checked });
 });
 
+elements.superJumpToggle.addEventListener("change", (event) => {
+    sendAction("setSuperJump", { enabled: event.target.checked });
+});
+
+elements.fastRunToggle.addEventListener("change", (event) => {
+    sendAction("setFastRun", { enabled: event.target.checked });
+});
+
+elements.invisibleToggle.addEventListener("change", (event) => {
+    sendAction("setInvisible", { enabled: event.target.checked });
+});
+
+elements.teleportWaypointButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+        sendAction("teleportToWaypoint");
+    });
+});
+
+elements.setWanted.addEventListener("click", () => {
+    const level = Number(elements.wantedLevel.value);
+    if (!Number.isNaN(level)) {
+        sendAction("setWantedLevel", { level });
+    }
+});
+
+elements.clearWanted.addEventListener("click", () => {
+    sendAction("setWantedLevel", { level: 0 });
+});
+
+elements.maxWanted.addEventListener("click", () => {
+    sendAction("setWantedLevel", { level: 5 });
+});
+
 elements.ammoToggle.addEventListener("change", (event) => {
     sendAction("setUnlimitedAmmo", { enabled: event.target.checked });
+});
+
+elements.noReloadToggle.addEventListener("change", (event) => {
+    sendAction("setNoReload", { enabled: event.target.checked });
+});
+
+elements.explosiveAmmoToggle.addEventListener("change", (event) => {
+    sendAction("setExplosiveAmmo", { enabled: event.target.checked });
+});
+
+elements.fireAmmoToggle.addEventListener("change", (event) => {
+    sendAction("setFireAmmo", { enabled: event.target.checked });
 });
 
 elements.giveWeapon.addEventListener("click", () => {
@@ -228,6 +412,22 @@ elements.giveWeapon.addEventListener("click", () => {
 
 elements.giveAllWeaponsButtons.forEach((button) => {
     button.addEventListener("click", () => sendAction("giveAllWeapons"));
+});
+
+elements.repairVehicle.addEventListener("click", () => {
+    sendAction("repairVehicle");
+});
+
+elements.flipVehicle.addEventListener("click", () => {
+    sendAction("flipVehicle");
+});
+
+elements.maxTuneVehicle.addEventListener("click", () => {
+    sendAction("maxTuneVehicle");
+});
+
+elements.vehicleGodmodeToggle.addEventListener("change", (event) => {
+    sendAction("setVehicleGodmode", { enabled: event.target.checked });
 });
 
 elements.setWeather.addEventListener("click", () => {
@@ -251,6 +451,18 @@ elements.setTimeCustom.addEventListener("click", () => {
     if (!Number.isNaN(hour) && !Number.isNaN(minute)) {
         sendAction("setTime", { hour, minute });
     }
+});
+
+elements.spawnBodyguards.addEventListener("click", () => {
+    const model = elements.bodyguardModel.value;
+    const count = Number(elements.bodyguardCount.value || "1");
+    if (model && !Number.isNaN(count)) {
+        sendAction("spawnBodyguards", { model, count });
+    }
+});
+
+elements.clearBodyguards.addEventListener("click", () => {
+    sendAction("removeBodyguards");
 });
 
 elements.setPed.addEventListener("click", () => {
@@ -277,6 +489,10 @@ window.addEventListener("message", (event) => {
         openMenu(data.payload || {});
     } else if (data.type === "closeMenu") {
         setOpenState(false);
+    } else if (data.type === "openSpawnSelector") {
+        openSpawnOverlay(data.payload || {});
+    } else if (data.type === "closeSpawnSelector") {
+        closeSpawnOverlay();
     } else if (data.type === "worldState") {
         state.world = data.payload || state.world;
         renderWorldStatus();
@@ -284,6 +500,11 @@ window.addEventListener("message", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+    if (state.spawnOpen && event.key === "Escape") {
+        event.preventDefault();
+        return;
+    }
+
     if (!state.opened) {
         return;
     }
@@ -295,6 +516,11 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("mousedown", (event) => {
+    if (state.spawnOpen && event.button === 2) {
+        event.preventDefault();
+        return;
+    }
+
     if (!state.opened) {
         return;
     }
@@ -306,7 +532,7 @@ window.addEventListener("mousedown", (event) => {
 });
 
 window.addEventListener("contextmenu", (event) => {
-    if (!state.opened) {
+    if (!state.opened && !state.spawnOpen) {
         return;
     }
 

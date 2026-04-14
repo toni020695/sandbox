@@ -1,9 +1,20 @@
 local isMenuOpen = false
 local isInvincible = false
 local hasUnlimitedAmmo = false
+local hasSuperJump = false
+local hasFastRun = false
+local isInvisible = false
+local hasVehicleGodmode = false
+local hasExplosiveAmmo = false
+local hasFireAmmo = false
+local hasNoReload = false
 local pedModels = {}
 local lastSpawnedVehicle = 0
 local lastTrackedWeapon = 0
+local lastShotTimestamp = 0
+local bodyguards = {}
+local spawnSelectionOpen = false
+local hasOpenedInitialSpawn = false
 local worldState = {
     weather = Config.World.defaultWeather,
     hour = Config.World.defaultHour,
@@ -114,6 +125,22 @@ for _, weaponModel in ipairs(trackedWeaponModels) do
     trackedWeaponHashes[#trackedWeaponHashes + 1] = joaat(weaponModel)
 end
 
+local bodyguardPresets = (Config.Bodyguards and Config.Bodyguards.presets) or {}
+local maxBodyguards = (Config.Bodyguards and Config.Bodyguards.maxCount) or 3
+local fastRunMultiplier = (Config.Player and Config.Player.fastRunMultiplier) or 1.49
+local spawnLocations = (Config.Spawns and Config.Spawns.locations) or {}
+local openSpawnOnJoin = not (Config.Spawns and Config.Spawns.openOnJoin == false)
+local openSpawnOnRespawn = not (Config.Spawns and Config.Spawns.openOnRespawn == false)
+
+local function setPedInvisibleState(ped, enabled)
+    SetEntityVisible(ped, not enabled, false)
+    SetEntityAlpha(ped, enabled and 0 or 255, false)
+    SetEntityCollision(ped, true, true)
+    SetLocalPlayerVisibleLocally(true)
+    SetEveryoneIgnorePlayer(PlayerId(), enabled)
+    SetPoliceIgnorePlayer(PlayerId(), enabled)
+end
+
 local function notify(message)
     BeginTextCommandThefeedPost("STRING")
     AddTextComponentSubstringPlayerName(message)
@@ -189,18 +216,89 @@ local function setMenuState(enabled)
                 weapons = Config.Weapons,
                 weather = Config.WeatherTypes,
                 times = Config.TimePresets,
+                wantedLevels = Config.WantedLevels,
+                bodyguards = bodyguardPresets,
                 peds = getPedModelsForUI(),
                 pedCount = #pedModels,
                 world = worldState,
                 toggles = {
                     invincible = isInvincible,
-                    unlimitedAmmo = hasUnlimitedAmmo
+                    unlimitedAmmo = hasUnlimitedAmmo,
+                    superJump = hasSuperJump,
+                    fastRun = hasFastRun,
+                    invisible = isInvisible,
+                    vehicleGodmode = hasVehicleGodmode,
+                    explosiveAmmo = hasExplosiveAmmo,
+                    fireAmmo = hasFireAmmo,
+                    noReload = hasNoReload
                 }
             }
         })
     else
         SendNUIMessage({ type = "closeMenu" })
     end
+end
+
+local function setSpawnSelectorState(enabled)
+    spawnSelectionOpen = enabled
+    if enabled then
+        SetNuiFocus(true, true)
+        SetNuiFocusKeepInput(false)
+        SendNUIMessage({
+            type = "openSpawnSelector",
+            payload = {
+                title = Config.MenuTitle,
+                spawns = spawnLocations
+            }
+        })
+    else
+        SendNUIMessage({ type = "closeSpawnSelector" })
+        if not isMenuOpen then
+            SetNuiFocus(false, false)
+            SetNuiFocusKeepInput(false)
+        end
+    end
+end
+
+local function openSpawnSelector()
+    if #spawnLocations == 0 then
+        print("^1[sandbox_core] No spawn locations configured in shared/config.lua^7")
+        return
+    end
+
+    setSpawnSelectorState(true)
+end
+
+local function applySpawnLocation(spawnIndex)
+    local index = tonumber(spawnIndex)
+    if not index then
+        return false, "Ungültige Spawn-Auswahl."
+    end
+
+    local spawn = spawnLocations[index]
+    if not spawn then
+        return false, "Spawnpunkt nicht gefunden."
+    end
+
+    local ped = PlayerPedId()
+    local x = tonumber(spawn.x) or 0.0
+    local y = tonumber(spawn.y) or 0.0
+    local z = tonumber(spawn.z) or 72.0
+    local heading = tonumber(spawn.heading) or 0.0
+
+    local vehicle = 0
+    if IsPedInAnyVehicle(ped, false) then
+        vehicle = GetVehiclePedIsIn(ped, false)
+    end
+
+    local entity = vehicle ~= 0 and vehicle or ped
+    SetEntityCoordsNoOffset(entity, x, y, z + 0.2, false, false, false)
+    SetEntityHeading(entity, heading)
+    FreezeEntityPosition(entity, true)
+    Wait(120)
+    FreezeEntityPosition(entity, false)
+
+    return true, spawn.label or "Spawn"
 end
 
 local function toggleMenu()
@@ -215,6 +313,230 @@ local function deleteVehicleIfExists(vehicle)
             DeleteEntity(vehicle)
         end
     end
+end
+
+local function clearDeadBodyguards()
+    local alive = {}
+    for _, guard in ipairs(bodyguards) do
+        if guard and DoesEntityExist(guard) and not IsEntityDead(guard) then
+            alive[#alive + 1] = guard
+        end
+    end
+    bodyguards = alive
+end
+
+local function removeBodyguards()
+    for _, guard in ipairs(bodyguards) do
+        if guard and DoesEntityExist(guard) then
+            SetEntityAsMissionEntity(guard, true, true)
+            DeleteEntity(guard)
+        end
+    end
+    bodyguards = {}
+end
+
+local function setWantedLevel(level)
+    local clamped = math.min(math.max(tonumber(level) or 0, 0), 5)
+    SetPlayerWantedLevel(PlayerId(), clamped, false)
+    SetPlayerWantedLevelNow(PlayerId(), false)
+    notify(("~g~Fahndungslevel gesetzt: %d Sterne"):format(clamped))
+end
+
+local function teleportToWaypoint()
+    local waypointBlip = GetFirstBlipInfoId(8)
+    if not DoesBlipExist(waypointBlip) then
+        notify("~r~Kein Wegpunkt auf der Karte gesetzt.")
+        return
+    end
+
+    local destination = GetBlipInfoIdCoord(waypointBlip)
+    local ped = PlayerPedId()
+    local entity = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or ped
+
+    for height = 1, 1000 do
+        SetEntityCoordsNoOffset(entity, destination.x, destination.y, height + 0.0, false, false, false)
+        local foundGround, groundZ = GetGroundZFor_3dCoord(destination.x, destination.y, height + 0.0, false)
+        if foundGround then
+            SetEntityCoordsNoOffset(entity, destination.x, destination.y, groundZ + 1.0, false, false, false)
+            notify("~g~Zum Wegpunkt teleportiert.")
+            return
+        end
+        Wait(5)
+    end
+
+    SetEntityCoordsNoOffset(entity, destination.x, destination.y, destination.z + 1.0, false, false, false)
+    notify("~y~Teleport ohne Ground-Lock ausgeführt.")
+end
+
+local function setInvisibility(enabled)
+    isInvisible = enabled
+    local ped = PlayerPedId()
+    setPedInvisibleState(ped, enabled)
+    notify(enabled and "~g~Unsichtbarkeit aktiviert." or "~y~Unsichtbarkeit deaktiviert.")
+end
+
+local function repairAndWashVehicle()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify("~r~Du sitzt in keinem Fahrzeug.")
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    SetVehicleFixed(vehicle)
+    SetVehicleDeformationFixed(vehicle)
+    SetVehicleUndriveable(vehicle, false)
+    SetVehicleEngineOn(vehicle, true, true, false)
+    SetVehicleDirtLevel(vehicle, 0.0)
+    notify("~g~Fahrzeug repariert und gewaschen.")
+end
+
+local function flipVehicle()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify("~r~Du sitzt in keinem Fahrzeug.")
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    local coords = GetEntityCoords(vehicle)
+    local heading = GetEntityHeading(vehicle)
+    SetEntityCoordsNoOffset(vehicle, coords.x, coords.y, coords.z + 0.8, false, false, false)
+    SetEntityRotation(vehicle, 0.0, 0.0, heading, 2, true)
+    SetVehicleOnGroundProperly(vehicle)
+    notify("~g~Fahrzeug aufgerichtet.")
+end
+
+local function maxTuneVehicle()
+    local ped = PlayerPedId()
+    if not IsPedInAnyVehicle(ped, false) then
+        notify("~r~Du sitzt in keinem Fahrzeug.")
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    SetVehicleModKit(vehicle, 0)
+    local modSlots = {
+        11, -- engine
+        12, -- brakes
+        13, -- transmission
+        15, -- suspension
+        16  -- armor
+    }
+
+    for _, slot in ipairs(modSlots) do
+        local count = GetNumVehicleMods(vehicle, slot)
+        if count and count > 0 then
+            SetVehicleMod(vehicle, slot, count - 1, false)
+        end
+    end
+
+    ToggleVehicleMod(vehicle, 18, true) -- turbo
+    SetVehicleTyresCanBurst(vehicle, false)
+    SetVehicleEnginePowerMultiplier(vehicle, 25.0)
+    notify("~g~Performance-Tuning auf Maximum gesetzt.")
+end
+
+local function setVehicleGodmode(enabled)
+    hasVehicleGodmode = enabled
+    local ped = PlayerPedId()
+    local vehicle = IsPedInAnyVehicle(ped, false) and GetVehiclePedIsIn(ped, false) or 0
+
+    if vehicle ~= 0 then
+        SetEntityInvincible(vehicle, enabled)
+        SetVehicleCanBeVisiblyDamaged(vehicle, not enabled)
+        SetVehicleTyresCanBurst(vehicle, not enabled)
+        SetDisableVehiclePetrolTankDamage(vehicle, enabled)
+        SetDisableVehiclePetrolTankFires(vehicle, enabled)
+        SetDisableVehicleEngineFires(vehicle, enabled)
+        SetVehicleEngineCanDegrade(vehicle, not enabled)
+    end
+
+    notify(enabled and "~g~Vehicle Godmode aktiviert." or "~y~Vehicle Godmode deaktiviert.")
+end
+
+local function setNoReload(enabled)
+    hasNoReload = enabled
+    notify(enabled and "~g~No Reload aktiviert." or "~y~No Reload deaktiviert.")
+end
+
+local function setExplosiveAmmo(enabled)
+    hasExplosiveAmmo = enabled
+    if enabled then
+        hasFireAmmo = false
+    end
+    notify(enabled and "~g~Explosivmunition aktiviert." or "~y~Explosivmunition deaktiviert.")
+end
+
+local function setFireAmmo(enabled)
+    hasFireAmmo = enabled
+    if enabled then
+        hasExplosiveAmmo = false
+    end
+    notify(enabled and "~g~Feuermunition aktiviert." or "~y~Feuermunition deaktiviert.")
+end
+
+local function spawnBodyguards(count, modelName)
+    clearDeadBodyguards()
+
+    local spawnCount = math.max(tonumber(count) or 1, 1)
+    spawnCount = math.min(spawnCount, maxBodyguards)
+    if #bodyguardPresets == 0 then
+        notify("~r~Keine Bodyguard-Presets in der Config gefunden.")
+        return
+    end
+
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+
+    for i = 1, spawnCount do
+        local offset = vector3((i * 1.6), (i % 2 == 0 and -2.0 or 2.0), 0.0)
+        local spawnPos = vector3(coords.x + offset.x, coords.y + offset.y, coords.z + 0.3)
+        local preset = bodyguardPresets[((#bodyguards + i - 1) % #bodyguardPresets) + 1]
+        if modelName and modelName ~= "" then
+            for _, candidate in ipairs(bodyguardPresets) do
+                if candidate.model == modelName then
+                    preset = candidate
+                    break
+                end
+            end
+        end
+
+        local modelHash = joaat(preset.model)
+        local weaponHash = joaat(preset.weapon or "weapon_carbinerifle")
+
+        if requestModel(modelHash) then
+            local guard = CreatePed(4, modelHash, spawnPos.x, spawnPos.y, spawnPos.z, heading, true, true)
+            if guard and DoesEntityExist(guard) then
+                SetEntityAsMissionEntity(guard, true, true)
+                SetPedCanSwitchWeapon(guard, true)
+                SetPedRelationshipGroupHash(guard, joaat("PLAYER"))
+                SetPedAsGroupMember(guard, GetPedGroupIndex(ped))
+                SetPedNeverLeavesGroup(guard, true)
+                SetPedKeepTask(guard, true)
+                SetPedCombatAttributes(guard, 5, true)
+                SetPedCombatAttributes(guard, 46, true)
+                SetPedCombatAbility(guard, 2)
+                SetPedCombatMovement(guard, 2)
+                SetPedCombatRange(guard, 2)
+                SetPedAccuracy(guard, 60)
+                SetPedSeeingRange(guard, 120.0)
+                SetPedHearingRange(guard, 80.0)
+                SetPedArmour(guard, 100)
+                SetEntityHealth(guard, 250)
+                SetEntityInvincible(guard, false)
+                GiveWeaponToPed(guard, weaponHash, 9999, false, true)
+                SetCurrentPedWeapon(guard, weaponHash, true)
+                SetPedDropsWeaponsWhenDead(guard, false)
+                TaskFollowToOffsetOfEntity(guard, ped, 0.0, -1.2, 0.0, 3.0, -1, 2.0, true)
+                bodyguards[#bodyguards + 1] = guard
+            end
+            SetModelAsNoLongerNeeded(modelHash)
+        end
+    end
+
+    notify(("~g~Bodyguards aktiv: %d"):format(#bodyguards))
 end
 
 local function capturePedWeapons(ped)
@@ -409,6 +731,19 @@ RegisterNUICallback("closeMenu", function(_, cb)
     cb({ ok = true })
 end)
 
+RegisterNUICallback("selectSpawn", function(data, cb)
+    local selectedIndex = data and (data.index or data.id)
+    local success, message = applySpawnLocation(selectedIndex)
+    if success then
+        setSpawnSelectorState(false)
+        notify(("~g~Spawn gesetzt: %s"):format(message))
+        cb({ ok = true })
+    else
+        notify(("~r~%s"):format(message or "Spawn fehlgeschlagen."))
+        cb({ ok = false, message = message })
+    end
+end)
+
 RegisterNUICallback("action", function(data, cb)
     local action = data.action
     local payload = data.payload or {}
@@ -426,6 +761,18 @@ RegisterNUICallback("action", function(data, cb)
         hasUnlimitedAmmo = payload.enabled == true
         setInfiniteAmmoForCurrentWeapon(hasUnlimitedAmmo)
         notify(hasUnlimitedAmmo and "~g~Unlimited Ammo aktiviert." or "~y~Unlimited Ammo deaktiviert.")
+    elseif action == "setWantedLevel" then
+        setWantedLevel(payload.level)
+    elseif action == "teleportToWaypoint" or action == "tpWaypoint" then
+        teleportToWaypoint()
+    elseif action == "setSuperJump" then
+        hasSuperJump = payload.enabled == true
+        notify(hasSuperJump and "~g~Super Jump aktiviert." or "~y~Super Jump deaktiviert.")
+    elseif action == "setFastRun" then
+        hasFastRun = payload.enabled == true
+        notify(hasFastRun and "~g~Fast Run aktiviert." or "~y~Fast Run deaktiviert.")
+    elseif action == "setInvisible" then
+        setInvisibility(payload.enabled == true)
     elseif action == "giveWeapon" then
         local weaponModel = tostring(payload.model or "")
         if weaponModel ~= "" then
@@ -433,6 +780,25 @@ RegisterNUICallback("action", function(data, cb)
         end
     elseif action == "giveAllWeapons" then
         giveAllWeapons()
+    elseif action == "repairVehicle" then
+        repairAndWashVehicle()
+    elseif action == "flipVehicle" then
+        flipVehicle()
+    elseif action == "maxTuneVehicle" then
+        maxTuneVehicle()
+    elseif action == "setVehicleGodmode" then
+        setVehicleGodmode(payload.enabled == true)
+    elseif action == "setExplosiveAmmo" then
+        setExplosiveAmmo(payload.enabled == true)
+    elseif action == "setFireAmmo" then
+        setFireAmmo(payload.enabled == true)
+    elseif action == "setNoReload" then
+        setNoReload(payload.enabled == true)
+    elseif action == "spawnBodyguards" then
+        spawnBodyguards(payload.count or 1, payload.model)
+    elseif action == "removeBodyguards" or action == "dismissBodyguards" then
+        removeBodyguards()
+        notify("~y~Bodyguards entfernt.")
     elseif action == "setWeather" then
         local weatherType = tostring(payload.weather or ""):upper()
         if weatherType ~= "" then
@@ -468,6 +834,11 @@ RegisterKeyMapping(Config.KeybindCommand, "Open Sandbox Menu", "keyboard", Confi
 CreateThread(function()
     loadPedModels()
     TriggerServerEvent("sandbox:requestWorldState")
+    Wait(250)
+    if openSpawnOnJoin and not hasOpenedInitialSpawn then
+        hasOpenedInitialSpawn = true
+        openSpawnSelector()
+    end
 end)
 
 AddEventHandler("playerSpawned", function()
@@ -481,6 +852,15 @@ AddEventHandler("playerSpawned", function()
     if hasUnlimitedAmmo then
         setInfiniteAmmoForCurrentWeapon(true)
     end
+
+    if isInvisible then
+        setPedInvisibleState(PlayerPedId(), true)
+    end
+
+    if openSpawnOnRespawn then
+        Wait(150)
+        openSpawnSelector()
+    end
 end)
 
 CreateThread(function()
@@ -492,6 +872,102 @@ CreateThread(function()
         SetVehicleDensityMultiplierThisFrame(1.0)
         SetRandomVehicleDensityMultiplierThisFrame(1.0)
         SetParkedVehicleDensityMultiplierThisFrame(1.0)
+    end
+end)
+
+CreateThread(function()
+    while true do
+        Wait(0)
+
+        if hasSuperJump then
+            SetSuperJumpThisFrame(PlayerId())
+        end
+
+        if hasFastRun then
+            SetRunSprintMultiplierForPlayer(PlayerId(), fastRunMultiplier)
+        else
+            SetRunSprintMultiplierForPlayer(PlayerId(), 1.0)
+        end
+
+        if hasNoReload then
+            local ped = PlayerPedId()
+            local _, currentWeapon = GetCurrentPedWeapon(ped, true)
+            if currentWeapon and currentWeapon ~= 0 then
+                local _, maxAmmoInClip = GetMaxAmmoInClip(ped, currentWeapon, true)
+                if maxAmmoInClip and maxAmmoInClip > 0 then
+                    SetAmmoInClip(ped, currentWeapon, maxAmmoInClip)
+                end
+            end
+        end
+
+        if hasVehicleGodmode then
+            local ped = PlayerPedId()
+            if IsPedInAnyVehicle(ped, false) then
+                local vehicle = GetVehiclePedIsIn(ped, false)
+                SetEntityInvincible(vehicle, true)
+                SetVehicleCanBeVisiblyDamaged(vehicle, false)
+                SetVehicleTyresCanBurst(vehicle, false)
+                SetDisableVehiclePetrolTankDamage(vehicle, true)
+                SetDisableVehiclePetrolTankFires(vehicle, true)
+                SetDisableVehicleEngineFires(vehicle, true)
+                SetVehicleEngineCanDegrade(vehicle, false)
+            end
+        end
+    end
+end)
+
+CreateThread(function()
+    while true do
+        Wait(0)
+
+        if hasExplosiveAmmo or hasFireAmmo then
+            local ped = PlayerPedId()
+            if IsPedShooting(ped) then
+                local currentTime = GetGameTimer()
+                if currentTime - lastShotTimestamp > 80 then
+                    lastShotTimestamp = currentTime
+                    local startPos = GetGameplayCamCoord()
+                    local direction = GetGameplayCamRot(2)
+                    local forward = vector3(
+                        -math.sin(math.rad(direction.z)) * math.cos(math.rad(direction.x)),
+                        math.cos(math.rad(direction.z)) * math.cos(math.rad(direction.x)),
+                        math.sin(math.rad(direction.x))
+                    )
+                    local endPos = vector3(
+                        startPos.x + forward.x * 250.0,
+                        startPos.y + forward.y * 250.0,
+                        startPos.z + forward.z * 250.0
+                    )
+                    local ray = StartShapeTestRay(startPos.x, startPos.y, startPos.z, endPos.x, endPos.y, endPos.z, 1, ped, 0)
+                    local _, hit, hitCoords = GetShapeTestResult(ray)
+                    if hit == 1 then
+                        if hasExplosiveAmmo then
+                            AddExplosion(hitCoords.x, hitCoords.y, hitCoords.z, 2, 2.0, true, false, 1.0)
+                        elseif hasFireAmmo then
+                            StartScriptFire(hitCoords.x, hitCoords.y, hitCoords.z, 8, false)
+                        end
+                    end
+                end
+            end
+        end
+
+        clearDeadBodyguards()
+        if #bodyguards > 0 then
+            local playerPed = PlayerPedId()
+            local playerCoords = GetEntityCoords(playerPed)
+
+            for _, guard in ipairs(bodyguards) do
+                if guard and DoesEntityExist(guard) and not IsEntityDead(guard) then
+                    local guardCoords = GetEntityCoords(guard)
+                    local distance = #(guardCoords - playerCoords)
+                    if distance > 35.0 then
+                        SetEntityCoordsNoOffset(guard, playerCoords.x + 1.5, playerCoords.y + 1.5, playerCoords.z, false, false, false)
+                    elseif not IsPedInCombat(guard, 0) and not IsPedRagdoll(guard) then
+                        TaskFollowToOffsetOfEntity(guard, playerPed, 0.0, -1.2, 0.0, 3.0, -1, 2.0, true)
+                    end
+                end
+            end
+        end
     end
 end)
 
@@ -514,6 +990,17 @@ CreateThread(function()
         SetWeatherTypeNowPersist(worldState.weather)
         NetworkOverrideClockTime(worldState.hour, worldState.minute, 0)
     end
+end)
+
+AddEventHandler("onResourceStop", function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then
+        return
+    end
+
+    removeBodyguards()
+    SetRunSprintMultiplierForPlayer(PlayerId(), 1.0)
+    setPedInvisibleState(PlayerPedId(), false)
+    setInfiniteAmmoForCurrentWeapon(false)
 end)
 
 CreateThread(function()
@@ -539,7 +1026,7 @@ end)
 CreateThread(function()
     while true do
         Wait(0)
-        if isMenuOpen then
+        if isMenuOpen or spawnSelectionOpen then
             DisableControlAction(0, 1, true)
             DisableControlAction(0, 2, true)
             DisableControlAction(0, 24, true)
