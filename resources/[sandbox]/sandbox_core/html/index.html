@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sandbox Menu</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main id="app" class="hidden">
+        <section class="menu-shell">
+            <header class="menu-header">
+                <div>
+                    <p class="label">FREEROAM SANDBOX</p>
+                    <h1 id="menu-title">Sandbox Menu</h1>
+                </div>
+                <button id="close-menu" class="close-button" type="button">X</button>
+            </header>
+
+            <nav class="tab-row" id="tab-row">
+                <button class="tab-button active" data-tab="tab-quick" type="button">Quick</button>
+                <button class="tab-button" data-tab="tab-vehicle" type="button">Fahrzeuge</button>
+                <button class="tab-button" data-tab="tab-weapons" type="button">Waffen</button>
+                <button class="tab-button" data-tab="tab-world" type="button">Welt</button>
+                <button class="tab-button" data-tab="tab-peds" type="button">Peds</button>
+            </nav>
+
+            <section class="tab-content active" id="tab-quick">
+                <div class="card-grid">
+                    <article class="menu-card">
+                        <h2>Spieler</h2>
+                        <button class="action-button" data-action="healPlayer" type="button">Heilen (HP + Armor)</button>
+                        <label class="toggle-row">
+                            <span>Unverwundbarkeit</span>
+                            <input id="toggle-invincible" type="checkbox">
+                        </label>
+                        <label class="toggle-row">
+                            <span>Unlimited Ammo</span>
+                            <input id="toggle-ammo" type="checkbox">
+                        </label>
+                    </article>
+
+                    <article class="menu-card">
+                        <h2>Waffen-Shortcuts</h2>
+                        <button class="action-button" data-action="giveAllWeapons" type="button">Alle Waffen geben</button>
+                        <p>Für einzelne Waffen nutze den Reiter <strong>Waffen</strong>.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="tab-content" id="tab-vehicle">
+                <article class="menu-card">
+                    <h2>Fahrzeug spawnen</h2>
+                    <div class="input-stack">
+                        <input id="vehicle-search" class="menu-input" type="text" placeholder="Suche Modell (z. B. adder)">
+                        <select id="vehicle-select" class="menu-select"></select>
+                        <button id="spawn-vehicle" class="action-button" type="button">Spawn</button>
+                    </div>
+                </article>
+            </section>
+
+            <section class="tab-content" id="tab-weapons">
+                <article class="menu-card">
+                    <h2>Waffen geben</h2>
+                    <div class="input-stack">
+                        <input id="weapon-search" class="menu-input" type="text" placeholder="Suche Waffe">
+                        <select id="weapon-select" class="menu-select"></select>
+                        <button id="give-weapon" class="action-button" type="button">Waffe geben</button>
+                    </div>
+                    <button class="action-button secondary" data-action="giveAllWeapons" type="button">Alle Waffen geben</button>
+                </article>
+            </section>
+
+            <section class="tab-content" id="tab-world">
+                <div class="card-grid">
+                    <article class="menu-card">
+                        <h2>Wetter</h2>
+                        <div class="input-stack">
+                            <select id="weather-select" class="menu-select"></select>
+                            <button id="set-weather" class="action-button" type="button">Wetter setzen</button>
+                        </div>
+                    </article>
+
+                    <article class="menu-card">
+                        <h2>Uhrzeit</h2>
+                        <div class="input-stack">
+                            <select id="time-preset-select" class="menu-select"></select>
+                            <button id="set-time-preset" class="action-button" type="button">Preset setzen</button>
+                        </div>
+                        <div class="time-row">
+                            <input id="time-hour" class="menu-input mini" type="number" min="0" max="23" placeholder="HH">
+                            <span>:</span>
+                            <input id="time-minute" class="menu-input mini" type="number" min="0" max="59" placeholder="MM">
+                            <button id="set-time-custom" class="action-button secondary" type="button">Übernehmen</button>
+                        </div>
+                        <p id="world-status">Aktuell: --:-- / ---</p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="tab-content" id="tab-peds">
+                <article class="menu-card">
+                    <h2>Ped / Skin wechseln</h2>
+                    <div class="input-stack">
+                        <input id="ped-search" class="menu-input" type="text" placeholder="Suche Ped / Tier">
+                        <select id="ped-select" class="menu-select ped-select" size="14"></select>
+                        <button id="set-ped" class="action-button" type="button">Ped anwenden</button>
+                    </div>
+                    <p>Freemode-Skins sind bewusst ausgeschlossen.</p>
+                </article>
+            </section>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
