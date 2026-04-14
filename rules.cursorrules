@@ -28,6 +28,3 @@ Es sollen ausschließlich sämtliche vorgefertigten GTA V Peds (Story-Charaktere
 
 Dokumentation & README
 Du bist als Lead Developer verantwortlich für die Projektdokumentation. Du erstellst eine README.md im Hauptverzeichnis und hältst diese nach jedem neuen Feature oder Update strikt aktuell. Die README muss simpel und übersichtlich sein und alle verfügbaren Ingame-Commands, Menü-Tasten und Kernfunktionen für Spieler und mich als Tester dokumentieren.
-
-Erster Schritt:
-Bitte erstelle nun die grundlegende Ordnerstruktur für diese Ressource(n), schreibe die fxmanifest.lua und richte eine Basis-README.md ein. Erkläre mir kurz deinen Plan für die Umsetzung des Cheat-Menüs und des Ped-Spawners, bevor du den Code dafür generierst.
