@@ -1,0 +1,106 @@
+local worldState = {
+    weather = Config.World.defaultWeather,
+    hour = Config.World.defaultHour,
+    minute = Config.World.defaultMinute
+}
+
+local allowedWeather = {}
+for _, weather in ipairs(Config.WeatherTypes) do
+    allowedWeather[weather.value] = true
+end
+
+local function clamp(value, minValue, maxValue)
+    if value < minValue then
+        return minValue
+    end
+    if value > maxValue then
+        return maxValue
+    end
+    return value
+end
+
+local function normalizeWeather(weatherName)
+    local normalized = tostring(weatherName or ""):upper()
+    if allowedWeather[normalized] then
+        return normalized
+    end
+
+    return nil
+end
+
+local function broadcastWorldState(target)
+    TriggerClientEvent("sandbox:applyWorldState", target or -1, worldState)
+end
+
+RegisterNetEvent("sandbox:requestWorldState", function()
+    local sourceId = source
+    broadcastWorldState(sourceId)
+end)
+
+RegisterNetEvent("sandbox:updateWeather", function(newWeather)
+    local weather = normalizeWeather(newWeather)
+    if not weather then
+        return
+    end
+
+    worldState.weather = weather
+    broadcastWorldState(-1)
+end)
+
+RegisterNetEvent("sandbox:updateTime", function(hour, minute)
+    local parsedHour = tonumber(hour)
+    local parsedMinute = tonumber(minute)
+    if not parsedHour or not parsedMinute then
+        return
+    end
+
+    worldState.hour = clamp(math.floor(parsedHour), 0, 23)
+    worldState.minute = clamp(math.floor(parsedMinute), 0, 59)
+    broadcastWorldState(-1)
+end)
+
+RegisterCommand("sandboxweather", function(sourceId, args)
+    local weather = normalizeWeather(args[1])
+    if not weather then
+        if sourceId > 0 then
+            TriggerClientEvent("chat:addMessage", sourceId, {
+                color = { 255, 75, 75 },
+                args = { "Sandbox", "Ungültiges Wetter. Nutze das Menü oder einen gültigen Wettertyp." }
+            })
+        else
+            print("[sandbox_core] Invalid weather type.")
+        end
+        return
+    end
+
+    worldState.weather = weather
+    broadcastWorldState(-1)
+end, false)
+
+RegisterCommand("sandboxtime", function(sourceId, args)
+    local parsedHour = tonumber(args[1] or "")
+    local parsedMinute = tonumber(args[2] or "")
+    if not parsedHour or not parsedMinute then
+        if sourceId > 0 then
+            TriggerClientEvent("chat:addMessage", sourceId, {
+                color = { 255, 75, 75 },
+                args = { "Sandbox", "Syntax: /sandboxtime <stunde 0-23> <minute 0-59>" }
+            })
+        else
+            print("[sandbox_core] Usage: sandboxtime <hour> <minute>")
+        end
+        return
+    end
+
+    worldState.hour = clamp(math.floor(parsedHour), 0, 23)
+    worldState.minute = clamp(math.floor(parsedMinute), 0, 59)
+    broadcastWorldState(-1)
+end, false)
+
+AddEventHandler("onResourceStart", function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then
+        return
+    end
+
+    broadcastWorldState(-1)
+end)
