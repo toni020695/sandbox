@@ -139,10 +139,14 @@ resources/
 - Fahrzeug-Spawn ersetzt das vorherige Sandbox-Spawnfahrzeug, um Fahrzeug-Spam zu vermeiden.
 - Wetter-/Zeit-Updates besitzen ein serverseitiges Rate-Limit pro Spieler (Anti-Spam).
 - Unlimited Ammo laeuft nicht mehr per Frame-Loop, sondern per 500ms-Waffenwechsel-Check.
+- Infinite Ammo wird nur auf Waffen mit Ammo-Pool angewendet (keine Nahkampf-Natives).
 - Weapon FX (Explosive/Fire) und No Reload werden als lokale Kampf-Modifier verarbeitet.
 - Vehicle Godmode und Player Movement Cheats (Super Jump/Fast Run/Invisible) laufen als lokale Toggles.
 - Bodyguards werden als bewaffnete NPC-Beschuetzer in der Naehe des Spielers erzeugt und verfolgen den Spieler.
 - Spawnpunkte sind zentral in `shared/config.lua` unter `Config.Spawns.locations` konfiguriert.
+- Fahrzeug-Spawn nutzt sichere Spawn-Koordinaten am Spieler (kein Wand-Offset nach vorne).
+- Menue/Spawn-Overlay schließen automatisch beim Tod, um Ghost-UI zu vermeiden.
+- Peds-Listenrendering ist in der UI auf 100 sichtbare Treffer limitiert (flüssigeres Oeffnen/Suchen).
 
 ## Naechste sinnvolle Erweiterungen
 

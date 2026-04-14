@@ -41,6 +41,7 @@ const closeButton = document.getElementById("close-menu");
 const worldStatus = document.getElementById("world-status");
 const tabButtons = document.querySelectorAll(".tab-button");
 const tabContents = document.querySelectorAll(".tab-content");
+const MAX_VISIBLE_PEDS = 100;
 
 const elements = {
     vehicleSearch: document.getElementById("vehicle-search"),
@@ -249,7 +250,7 @@ const renderBodyguardPresets = () => {
 
 const renderPeds = () => {
     const filteredPeds = filterBy(state.peds, elements.pedSearch.value, (item) => item.label);
-    fillSelect(elements.pedSelect, filteredPeds, {
+    fillSelect(elements.pedSelect, filteredPeds.slice(0, MAX_VISIBLE_PEDS), {
         mapLabel: (item) => item.label,
         mapValue: (item) => `${item.hash}|${item.label}`
     });
