@@ -52,6 +52,10 @@ resources/
 - Menue oeffnen:
   - Taste: `F5`
   - oder Command: `/sandboxmenu`
+- Menue schliessen:
+  - `Esc`
+  - `Backspace`
+  - Rechtsklick (rechte Maustaste)
 
 ## Verfuegbare Commands
 
@@ -93,6 +97,10 @@ resources/
 - Weltstatus (Wetter/Zeit) wird serverseitig verwaltet und an alle Clients synchronisiert.
 - Ped-Liste basiert auf `shared/ped_models.txt`.
 - Freemode-Modelle (`mp_m_freemode_01`, `mp_f_freemode_01`) werden automatisch gefiltert.
+- Beim Ped-Wechsel werden Waffen inkl. Munition gepuffert und auf dem neuen Ped wiederhergestellt.
+- Fahrzeug-Spawn ersetzt das vorherige Sandbox-Spawnfahrzeug, um Fahrzeug-Spam zu vermeiden.
+- Wetter-/Zeit-Updates besitzen ein serverseitiges Rate-Limit pro Spieler (Anti-Spam).
+- Unlimited Ammo laeuft nicht mehr per Frame-Loop, sondern per 500ms-Waffenwechsel-Check.
 
 ## Naechste sinnvolle Erweiterungen
 

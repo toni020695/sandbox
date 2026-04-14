@@ -2,11 +2,117 @@ local isMenuOpen = false
 local isInvincible = false
 local hasUnlimitedAmmo = false
 local pedModels = {}
+local lastSpawnedVehicle = 0
+local lastTrackedWeapon = 0
 local worldState = {
     weather = Config.World.defaultWeather,
     hour = Config.World.defaultHour,
     minute = Config.World.defaultMinute
 }
+
+local trackedWeaponModels = {
+    "weapon_knife",
+    "weapon_nightstick",
+    "weapon_hammer",
+    "weapon_bat",
+    "weapon_golfclub",
+    "weapon_crowbar",
+    "weapon_bottle",
+    "weapon_dagger",
+    "weapon_hatchet",
+    "weapon_knuckle",
+    "weapon_machete",
+    "weapon_flashlight",
+    "weapon_switchblade",
+    "weapon_poolcue",
+    "weapon_wrench",
+    "weapon_battleaxe",
+    "weapon_stone_hatchet",
+    "weapon_pistol",
+    "weapon_pistol_mk2",
+    "weapon_combatpistol",
+    "weapon_appistol",
+    "weapon_pistol50",
+    "weapon_snspistol",
+    "weapon_snspistol_mk2",
+    "weapon_heavypistol",
+    "weapon_vintagepistol",
+    "weapon_marksmanpistol",
+    "weapon_revolver",
+    "weapon_revolver_mk2",
+    "weapon_doubleaction",
+    "weapon_ceramicpistol",
+    "weapon_navyrevolver",
+    "weapon_gadgetpistol",
+    "weapon_stungun",
+    "weapon_flaregun",
+    "weapon_microsmg",
+    "weapon_smg",
+    "weapon_smg_mk2",
+    "weapon_assaultsmg",
+    "weapon_combatpdw",
+    "weapon_machinepistol",
+    "weapon_minismg",
+    "weapon_pumpshotgun",
+    "weapon_pumpshotgun_mk2",
+    "weapon_sawnoffshotgun",
+    "weapon_assaultshotgun",
+    "weapon_bullpupshotgun",
+    "weapon_musket",
+    "weapon_heavyshotgun",
+    "weapon_dbshotgun",
+    "weapon_autoshotgun",
+    "weapon_combatshotgun",
+    "weapon_assaultrifle",
+    "weapon_assaultrifle_mk2",
+    "weapon_carbinerifle",
+    "weapon_carbinerifle_mk2",
+    "weapon_advancedrifle",
+    "weapon_specialcarbine",
+    "weapon_specialcarbine_mk2",
+    "weapon_bullpuprifle",
+    "weapon_bullpuprifle_mk2",
+    "weapon_compactrifle",
+    "weapon_militaryrifle",
+    "weapon_heavyrifle",
+    "weapon_tacticalrifle",
+    "weapon_mg",
+    "weapon_combatmg",
+    "weapon_combatmg_mk2",
+    "weapon_gusenberg",
+    "weapon_sniperrifle",
+    "weapon_heavysniper",
+    "weapon_heavysniper_mk2",
+    "weapon_marksmanrifle",
+    "weapon_marksmanrifle_mk2",
+    "weapon_precisionrifle",
+    "weapon_rpg",
+    "weapon_grenadelauncher",
+    "weapon_grenadelauncher_smoke",
+    "weapon_minigun",
+    "weapon_firework",
+    "weapon_railgun",
+    "weapon_hominglauncher",
+    "weapon_compactlauncher",
+    "weapon_rayminigun",
+    "weapon_grenade",
+    "weapon_bzgas",
+    "weapon_smokegrenade",
+    "weapon_flare",
+    "weapon_molotov",
+    "weapon_stickybomb",
+    "weapon_proxmine",
+    "weapon_snowball",
+    "weapon_pipebomb",
+    "weapon_ball",
+    "weapon_petrolcan",
+    "weapon_fireextinguisher",
+    "weapon_parachute"
+}
+local trackedWeaponHashes = {}
+for _, weaponModel in ipairs(trackedWeaponModels) do
+    trackedWeaponHashes[#trackedWeaponHashes + 1] = joaat(weaponModel)
+end
 
 local function notify(message)
     BeginTextCommandThefeedPost("STRING")
@@ -101,6 +207,53 @@ local function toggleMenu()
     setMenuState(not isMenuOpen)
 end
 
+local function deleteVehicleIfExists(vehicle)
+    if vehicle and vehicle ~= 0 and DoesEntityExist(vehicle) then
+        SetEntityAsMissionEntity(vehicle, true, true)
+        DeleteVehicle(vehicle)
+        if DoesEntityExist(vehicle) then
+            DeleteEntity(vehicle)
+        end
+    end
+end
+
+local function capturePedWeapons(ped)
+    local weapons = {}
+    local _, currentWeaponHash = GetCurrentPedWeapon(ped, true)
+
+    for _, weaponHash in ipairs(trackedWeaponHashes) do
+        if HasPedGotWeapon(ped, weaponHash, false) then
+            weapons[#weapons + 1] = {
+                hash = weaponHash,
+                ammo = GetAmmoInPedWeapon(ped, weaponHash),
+                isCurrent = currentWeaponHash == weaponHash
+            }
+        end
+    end
+
+    return weapons
+end
+
+local function restorePedWeapons(ped, weapons)
+    for _, weaponData in ipairs(weapons) do
+        GiveWeaponToPed(ped, weaponData.hash, weaponData.ammo, false, weaponData.isCurrent == true)
+        SetPedAmmo(ped, weaponData.hash, weaponData.ammo)
+    end
+end
+
+local function setInfiniteAmmoForCurrentWeapon(enabled)
+    local ped = PlayerPedId()
+    local _, currentWeapon = GetCurrentPedWeapon(ped, true)
+    SetPedInfiniteAmmoClip(ped, enabled)
+
+    if currentWeapon and currentWeapon ~= 0 then
+        SetPedInfiniteAmmo(ped, enabled, currentWeapon)
+        lastTrackedWeapon = currentWeapon
+    elseif not enabled then
+        lastTrackedWeapon = 0
+    end
+end
+
 local function spawnVehicle(modelName)
     local ped = PlayerPedId()
     local modelHash = joaat(modelName)
@@ -108,6 +261,23 @@ local function spawnVehicle(modelName)
     if not requestModel(modelHash) then
         notify(("~r~Ungültiges Fahrzeugmodell: %s"):format(modelName))
         return
+    end
+
+    local currentVehicle = 0
+    if IsPedInAnyVehicle(ped, false) then
+        currentVehicle = GetVehiclePedIsIn(ped, false)
+    end
+
+    if currentVehicle ~= 0 and GetPedInVehicleSeat(currentVehicle, -1) == ped then
+        deleteVehicleIfExists(currentVehicle)
+        if currentVehicle == lastSpawnedVehicle then
+            lastSpawnedVehicle = 0
+        end
+    end
+
+    if lastSpawnedVehicle ~= 0 then
+        deleteVehicleIfExists(lastSpawnedVehicle)
+        lastSpawnedVehicle = 0
     end
 
     local pedCoords = GetEntityCoords(ped)
@@ -124,8 +294,10 @@ local function spawnVehicle(modelName)
         SetVehicleOnGroundProperly(vehicle)
         SetPedIntoVehicle(ped, vehicle, -1)
         SetVehicleDirtLevel(vehicle, 0.0)
+        lastSpawnedVehicle = vehicle
         notify(("~g~Fahrzeug gespawnt: %s"):format(modelName))
     else
+        lastSpawnedVehicle = 0
         notify("~r~Fahrzeug konnte nicht erstellt werden.")
     end
 
@@ -178,6 +350,7 @@ local function setPlayerPedModel(pedHash, label)
     local heading = GetEntityHeading(oldPed)
     local health = GetEntityHealth(oldPed)
     local armour = GetPedArmour(oldPed)
+    local savedWeapons = capturePedWeapons(oldPed)
 
     if not requestModel(pedHash) then
         notify("~r~Ped-Modell konnte nicht geladen werden.")
@@ -186,6 +359,7 @@ local function setPlayerPedModel(pedHash, label)
 
     SetPlayerModel(playerId, pedHash)
     SetModelAsNoLongerNeeded(pedHash)
+    Wait(50)
 
     local newPed = PlayerPedId()
     SetEntityCoordsNoOffset(newPed, coords.x, coords.y, coords.z, false, false, false)
@@ -193,10 +367,15 @@ local function setPlayerPedModel(pedHash, label)
     SetPedDefaultComponentVariation(newPed)
     SetEntityHealth(newPed, math.max(health, 100))
     SetPedArmour(newPed, armour)
+    restorePedWeapons(newPed, savedWeapons)
 
     if isInvincible then
         SetEntityInvincible(newPed, true)
         SetPlayerInvincible(playerId, true)
+    end
+
+    if hasUnlimitedAmmo then
+        setInfiniteAmmoForCurrentWeapon(true)
     end
 
     notify(("~g~Ped gesetzt: %s"):format(label))
@@ -245,6 +424,7 @@ RegisterNUICallback("action", function(data, cb)
         setInvincible(payload.enabled == true)
     elseif action == "setUnlimitedAmmo" then
         hasUnlimitedAmmo = payload.enabled == true
+        setInfiniteAmmoForCurrentWeapon(hasUnlimitedAmmo)
         notify(hasUnlimitedAmmo and "~g~Unlimited Ammo aktiviert." or "~y~Unlimited Ammo deaktiviert.")
     elseif action == "giveWeapon" then
         local weaponModel = tostring(payload.model or "")
@@ -297,6 +477,10 @@ AddEventHandler("playerSpawned", function()
         SetEntityInvincible(ped, true)
         SetPlayerInvincible(PlayerId(), true)
     end
+
+    if hasUnlimitedAmmo then
+        setInfiniteAmmoForCurrentWeapon(true)
+    end
 end)
 
 CreateThread(function()
@@ -334,24 +518,21 @@ end)
 
 CreateThread(function()
     while true do
-        Wait(0)
+        Wait(500)
 
-        if hasUnlimitedAmmo then
-            local ped = PlayerPedId()
-            local _, currentWeapon = GetCurrentPedWeapon(ped, true)
-            SetPedInfiniteAmmoClip(ped, true)
-            if currentWeapon and currentWeapon ~= 0 then
-                SetPedInfiniteAmmo(ped, true, currentWeapon)
-            end
-        else
-            local ped = PlayerPedId()
-            local _, currentWeapon = GetCurrentPedWeapon(ped, true)
-            SetPedInfiniteAmmoClip(ped, false)
-            if currentWeapon and currentWeapon ~= 0 then
-                SetPedInfiniteAmmo(ped, false, currentWeapon)
-            end
-            Wait(500)
+        if not hasUnlimitedAmmo then
+            goto continue
         end
+
+        local ped = PlayerPedId()
+        local _, currentWeapon = GetCurrentPedWeapon(ped, true)
+        if currentWeapon and currentWeapon ~= 0 and currentWeapon ~= lastTrackedWeapon then
+            SetPedInfiniteAmmoClip(ped, true)
+            SetPedInfiniteAmmo(ped, true, currentWeapon)
+            lastTrackedWeapon = currentWeapon
+        end
+
+        ::continue::
     end
 end)
 
