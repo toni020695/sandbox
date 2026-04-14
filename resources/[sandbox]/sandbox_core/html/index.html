@@ -7,6 +7,21 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <section id="spawn-overlay" class="spawn-overlay hidden">
+        <div class="spawn-panel">
+            <div class="spawn-header">
+                <p class="label">SANDBOX SPAWN</p>
+                <h2 id="spawn-title">Spawn-Auswahl</h2>
+                <p id="spawn-description">Waehle einen bekannten Ort fuer deinen Spawn.</p>
+            </div>
+            <div class="input-stack">
+                <input id="spawn-search" class="menu-input" type="text" placeholder="Spawnpunkt suchen (z. B. Flughafen)">
+                <div id="spawn-list" class="spawn-list"></div>
+                <button id="spawn-confirm" class="action-button" type="button">Hier spawnen</button>
+            </div>
+        </div>
+    </section>
+
     <main id="app" class="hidden">
         <section class="menu-shell">
             <header class="menu-header">

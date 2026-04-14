@@ -13,6 +13,8 @@ local lastSpawnedVehicle = 0
 local lastTrackedWeapon = 0
 local lastShotTimestamp = 0
 local bodyguards = {}
+local spawnSelectionOpen = false
+local hasOpenedInitialSpawn = false
 local worldState = {
     weather = Config.World.defaultWeather,
     hour = Config.World.defaultHour,
@@ -126,6 +128,9 @@ end
 local bodyguardPresets = (Config.Bodyguards and Config.Bodyguards.presets) or {}
 local maxBodyguards = (Config.Bodyguards and Config.Bodyguards.maxCount) or 3
 local fastRunMultiplier = (Config.Player and Config.Player.fastRunMultiplier) or 1.49
+local spawnLocations = (Config.Spawns and Config.Spawns.locations) or {}
+local openSpawnOnJoin = not (Config.Spawns and Config.Spawns.openOnJoin == false)
+local openSpawnOnRespawn = not (Config.Spawns and Config.Spawns.openOnRespawn == false)
 
 local function setPedInvisibleState(ped, enabled)
     SetEntityVisible(ped, not enabled, false)
@@ -232,6 +237,68 @@ local function setMenuState(enabled)
     else
         SendNUIMessage({ type = "closeMenu" })
     end
+end
+
+local function setSpawnSelectorState(enabled)
+    spawnSelectionOpen = enabled
+    if enabled then
+        SetNuiFocus(true, true)
+        SetNuiFocusKeepInput(false)
+        SendNUIMessage({
+            type = "openSpawnSelector",
+            payload = {
+                title = Config.MenuTitle,
+                spawns = spawnLocations
+            }
+        })
+    else
+        SendNUIMessage({ type = "closeSpawnSelector" })
+        if not isMenuOpen then
+            SetNuiFocus(false, false)
+            SetNuiFocusKeepInput(false)
+        end
+    end
+end
+
+local function openSpawnSelector()
+    if #spawnLocations == 0 then
+        print("^1[sandbox_core] No spawn locations configured in shared/config.lua^7")
+        return
+    end
+
+    setSpawnSelectorState(true)
+end
+
+local function applySpawnLocation(spawnIndex)
+    local index = tonumber(spawnIndex)
+    if not index then
+        return false, "Ungültige Spawn-Auswahl."
+    end
+
+    local spawn = spawnLocations[index]
+    if not spawn then
+        return false, "Spawnpunkt nicht gefunden."
+    end
+
+    local ped = PlayerPedId()
+    local x = tonumber(spawn.x) or 0.0
+    local y = tonumber(spawn.y) or 0.0
+    local z = tonumber(spawn.z) or 72.0
+    local heading = tonumber(spawn.heading) or 0.0
+
+    local vehicle = 0
+    if IsPedInAnyVehicle(ped, false) then
+        vehicle = GetVehiclePedIsIn(ped, false)
+    end
+
+    local entity = vehicle ~= 0 and vehicle or ped
+    SetEntityCoordsNoOffset(entity, x, y, z + 0.2, false, false, false)
+    SetEntityHeading(entity, heading)
+    FreezeEntityPosition(entity, true)
+    Wait(120)
+    FreezeEntityPosition(entity, false)
+
+    return true, spawn.label or "Spawn"
 end
 
 local function toggleMenu()
@@ -664,6 +731,19 @@ RegisterNUICallback("closeMenu", function(_, cb)
     cb({ ok = true })
 end)
 
+RegisterNUICallback("selectSpawn", function(data, cb)
+    local selectedIndex = data and (data.index or data.id)
+    local success, message = applySpawnLocation(selectedIndex)
+    if success then
+        setSpawnSelectorState(false)
+        notify(("~g~Spawn gesetzt: %s"):format(message))
+        cb({ ok = true })
+    else
+        notify(("~r~%s"):format(message or "Spawn fehlgeschlagen."))
+        cb({ ok = false, message = message })
+    end
+end)
+
 RegisterNUICallback("action", function(data, cb)
     local action = data.action
     local payload = data.payload or {}
@@ -754,6 +834,11 @@ RegisterKeyMapping(Config.KeybindCommand, "Open Sandbox Menu", "keyboard", Confi
 CreateThread(function()
     loadPedModels()
     TriggerServerEvent("sandbox:requestWorldState")
+    Wait(250)
+    if openSpawnOnJoin and not hasOpenedInitialSpawn then
+        hasOpenedInitialSpawn = true
+        openSpawnSelector()
+    end
 end)
 
 AddEventHandler("playerSpawned", function()
@@ -770,6 +855,11 @@ AddEventHandler("playerSpawned", function()
 
     if isInvisible then
         setPedInvisibleState(PlayerPedId(), true)
+    end
+
+    if openSpawnOnRespawn then
+        Wait(150)
+        openSpawnSelector()
     end
 end)
 
@@ -936,7 +1026,7 @@ end)
 CreateThread(function()
     while true do
         Wait(0)
-        if isMenuOpen then
+        if isMenuOpen or spawnSelectionOpen then
             DisableControlAction(0, 1, true)
             DisableControlAction(0, 2, true)
             DisableControlAction(0, 24, true)

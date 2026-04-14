@@ -32,6 +32,7 @@ Ziel: GTA V Singleplayer-Feeling mit lebendiger Welt, aktivem Dispatch-System un
 - Fahrzeug flippen
 - Instant Max Tuning
 - Bodyguards (1-3 NPC-Beschuetzer)
+- Spawn-Auswahl bei Login und nach Respawn/Tod mit bekannten Orten
 - Ped-System:
   - Auswahl aus GTA V Standard-Peds (inkl. Tiere)
   - Freemode Male/Female bewusst ausgeschlossen
@@ -65,6 +66,9 @@ resources/
 - Menue oeffnen:
   - Taste: `F5`
   - oder Command: `/sandboxmenu`
+- Spawn-Auswahl:
+  - wird automatisch bei erstem Login und nach jedem Respawn/Tod geoeffnet
+  - Zielort per Klick waehlen und `Spawn` druecken
 - Menue schliessen:
   - `Esc`
   - `Backspace`
@@ -114,6 +118,14 @@ resources/
 - **Welt**
   - Wetter per Auswahl setzen
   - Uhrzeit per Preset oder Custom HH:MM setzen
+- **Spawn-Auswahl (Overlay)**
+  - Los Santos International Airport
+  - Legion Square
+  - Vespucci Beach
+  - Del Perro Pier
+  - Sandy Shores Airfield
+  - Paleto Bay Sheriff
+  - Mount Chiliad Base
 - **Peds**
   - Ped-/Tier-Liste durchsuchen
   - Ausgewaehlten Ped direkt anwenden
@@ -130,6 +142,7 @@ resources/
 - Weapon FX (Explosive/Fire) und No Reload werden als lokale Kampf-Modifier verarbeitet.
 - Vehicle Godmode und Player Movement Cheats (Super Jump/Fast Run/Invisible) laufen als lokale Toggles.
 - Bodyguards werden als bewaffnete NPC-Beschuetzer in der Naehe des Spielers erzeugt und verfolgen den Spieler.
+- Spawnpunkte sind zentral in `shared/config.lua` unter `Config.Spawns.locations` konfiguriert.
 
 ## Naechste sinnvolle Erweiterungen
 

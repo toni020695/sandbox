@@ -2,7 +2,9 @@ const resourceName = typeof GetParentResourceName === "function" ? GetParentReso
 
 const state = {
     opened: false,
+    spawnOpen: false,
     activeTab: "tab-quick",
+    spawns: [],
     vehicles: [],
     weapons: [],
     weather: [],
@@ -28,6 +30,12 @@ const state = {
 };
 
 const app = document.getElementById("app");
+const spawnOverlay = document.getElementById("spawn-overlay");
+const spawnTitle = document.getElementById("spawn-title");
+const spawnDescription = document.getElementById("spawn-description");
+const spawnSearch = document.getElementById("spawn-search");
+const spawnList = document.getElementById("spawn-list");
+const spawnConfirm = document.getElementById("spawn-confirm");
 const menuTitle = document.getElementById("menu-title");
 const closeButton = document.getElementById("close-menu");
 const worldStatus = document.getElementById("world-status");
@@ -101,6 +109,63 @@ const closeMenu = async () => {
     } catch (error) {
         console.error("[sandbox_core] Failed to close menu", error);
     }
+};
+
+const closeSpawnOverlay = () => {
+    state.spawnOpen = false;
+    spawnOverlay.classList.add("hidden");
+};
+
+const requestSpawnByIndex = async (index) => {
+    if (Number.isNaN(index)) {
+        return;
+    }
+
+    try {
+        await postNui("selectSpawn", { index });
+        closeSpawnOverlay();
+    } catch (error) {
+        console.error("[sandbox_core] Failed to confirm spawn", error);
+    }
+};
+
+const renderSpawnList = () => {
+    const query = (spawnSearch.value || "").trim().toLowerCase();
+    const filtered = state.spawns.filter((spawn) =>
+        spawn.label.toLowerCase().includes(query) || (spawn.description || "").toLowerCase().includes(query)
+    );
+
+    spawnList.innerHTML = "";
+
+    if (filtered.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "spawn-empty";
+        empty.textContent = "Keine Spawnpunkte gefunden.";
+        spawnList.appendChild(empty);
+        return;
+    }
+
+    filtered.forEach((spawn) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "spawn-item";
+        row.dataset.index = String(spawn.index);
+        row.innerHTML = `<strong>${spawn.label}</strong><span>${spawn.description || ""}</span>`;
+        row.addEventListener("click", () => {
+            requestSpawnByIndex(Number(spawn.index));
+        });
+        spawnList.appendChild(row);
+    });
+};
+
+const openSpawnOverlay = (payload = {}) => {
+    state.spawns = Array.isArray(payload.spawns) ? payload.spawns : [];
+    spawnTitle.textContent = payload.title || "Spawn Auswahl";
+    spawnDescription.textContent = payload.description || "Waehle einen Ort zum Spawnen.";
+    spawnSearch.value = "";
+    renderSpawnList();
+    state.spawnOpen = true;
+    spawnOverlay.classList.remove("hidden");
 };
 
 const setOpenState = (opened) => {
@@ -251,6 +316,28 @@ elements.vehicleSearch.addEventListener("input", renderVehicles);
 elements.weaponSearch.addEventListener("input", renderWeapons);
 elements.pedSearch.addEventListener("input", renderPeds);
 elements.wantedLevel.addEventListener("input", renderWantedLabel);
+spawnSearch.addEventListener("input", renderSpawnList);
+
+spawnConfirm.addEventListener("click", () => {
+    if (!state.spawnOpen) {
+        return;
+    }
+
+    const firstSpawn = state.spawns[0];
+    const selectedIndex = firstSpawn ? Number(firstSpawn.index) : NaN;
+    if (Number.isNaN(selectedIndex) && spawnList.firstElementChild) {
+        const fallback = Number(spawnList.firstElementChild.dataset.index);
+        if (!Number.isNaN(fallback)) {
+            requestSpawnByIndex(fallback);
+            return;
+        }
+    }
+
+    if (Number.isNaN(selectedIndex)) {
+        return;
+    }
+    requestSpawnByIndex(selectedIndex);
+});
 
 elements.spawnVehicle.addEventListener("click", () => {
     const model = elements.vehicleSelect.value;
@@ -402,6 +489,10 @@ window.addEventListener("message", (event) => {
         openMenu(data.payload || {});
     } else if (data.type === "closeMenu") {
         setOpenState(false);
+    } else if (data.type === "openSpawnSelector") {
+        openSpawnOverlay(data.payload || {});
+    } else if (data.type === "closeSpawnSelector") {
+        closeSpawnOverlay();
     } else if (data.type === "worldState") {
         state.world = data.payload || state.world;
         renderWorldStatus();
@@ -409,6 +500,11 @@ window.addEventListener("message", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+    if (state.spawnOpen && event.key === "Escape") {
+        event.preventDefault();
+        return;
+    }
+
     if (!state.opened) {
         return;
     }
@@ -420,6 +516,11 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("mousedown", (event) => {
+    if (state.spawnOpen && event.button === 2) {
+        event.preventDefault();
+        return;
+    }
+
     if (!state.opened) {
         return;
     }
@@ -431,7 +532,7 @@ window.addEventListener("mousedown", (event) => {
 });
 
 window.addEventListener("contextmenu", (event) => {
-    if (!state.opened) {
+    if (!state.opened && !state.spawnOpen) {
         return;
     }
 

@@ -111,4 +111,21 @@ Config.Bodyguards = {
     }
 }
 
+Config.Spawns = {
+    openOnJoin = true,
+    openOnRespawn = true,
+    locations = {
+        { label = "Legion Square", x = 215.76, y = -810.12, z = 30.73, heading = 157.0 },
+        { label = "Vespucci Beach", x = -1206.17, y = -1560.63, z = 4.61, heading = 128.0 },
+        { label = "Del Perro Pier", x = -1803.02, y = -1221.42, z = 13.02, heading = 54.0 },
+        { label = "Los Santos Airport", x = -1037.88, y = -2738.09, z = 20.17, heading = 328.0 },
+        { label = "Sandy Shores Airfield", x = 1741.66, y = 3272.45, z = 41.14, heading = 102.0 },
+        { label = "Paleto Bay", x = -231.53, y = 6327.96, z = 31.49, heading = 221.0 },
+        { label = "Mount Chiliad Base", x = 501.41, y = 5593.63, z = 796.08, heading = 172.0 },
+        { label = "Maze Bank Roof", x = -75.52, y = -818.66, z = 326.18, heading = 348.0 },
+        { label = "Fort Zancudo", x = -2049.66, y = 3132.04, z = 32.81, heading = 60.0 },
+        { label = "Humane Labs", x = 3611.94, y = 3741.86, z = 28.69, heading = 268.0 }
+    }
+}
+
 Config.MaxPedListForUI = 2000
