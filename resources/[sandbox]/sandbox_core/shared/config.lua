@@ -11,6 +11,10 @@ Config.World = {
     defaultMinute = 0
 }
 
+Config.Player = {
+    fastRunMultiplier = 1.49
+}
+
 Config.VehiclePresets = {
     "adder",
     "zentorno",
@@ -87,6 +91,24 @@ Config.TimePresets = {
     { label = "Evening", hour = 18, minute = 0 },
     { label = "Night", hour = 23, minute = 0 },
     { label = "Midnight", hour = 0, minute = 0 }
+}
+
+Config.WantedLevels = {
+    { label = "0 Sterne", value = 0 },
+    { label = "1 Stern", value = 1 },
+    { label = "2 Sterne", value = 2 },
+    { label = "3 Sterne", value = 3 },
+    { label = "4 Sterne", value = 4 },
+    { label = "5 Sterne", value = 5 }
+}
+
+Config.Bodyguards = {
+    maxCount = 3,
+    presets = {
+        { label = "Merryweather", model = "s_m_y_blackops_01", weapon = "weapon_carbinerifle" },
+        { label = "Grove Street", model = "g_m_y_famca_01", weapon = "weapon_smg" },
+        { label = "NOOSE", model = "s_m_y_swat_01", weapon = "weapon_carbinerifle" }
+    }
 }
 
 Config.MaxPedListForUI = 2000

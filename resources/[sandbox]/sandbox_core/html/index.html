@@ -19,9 +19,11 @@
 
             <nav class="tab-row" id="tab-row">
                 <button class="tab-button active" data-tab="tab-quick" type="button">Quick</button>
+                <button class="tab-button" data-tab="tab-player" type="button">Spieler</button>
                 <button class="tab-button" data-tab="tab-vehicle" type="button">Fahrzeuge</button>
                 <button class="tab-button" data-tab="tab-weapons" type="button">Waffen</button>
                 <button class="tab-button" data-tab="tab-world" type="button">Welt</button>
+                <button class="tab-button" data-tab="tab-chaos" type="button">Chaos</button>
                 <button class="tab-button" data-tab="tab-peds" type="button">Peds</button>
             </nav>
 
@@ -38,37 +40,105 @@
                             <span>Unlimited Ammo</span>
                             <input id="toggle-ammo" type="checkbox">
                         </label>
+                        <label class="toggle-row">
+                            <span>Unsichtbarkeit</span>
+                            <input id="toggle-invisible" type="checkbox">
+                        </label>
                     </article>
 
                     <article class="menu-card">
                         <h2>Waffen-Shortcuts</h2>
                         <button class="action-button" data-action="giveAllWeapons" type="button">Alle Waffen geben</button>
-                        <p>Für einzelne Waffen nutze den Reiter <strong>Waffen</strong>.</p>
+                        <button class="action-button secondary" data-action="tpWaypoint" type="button">Teleport zum Wegpunkt</button>
+                        <p>Für mehr Spieleroptionen nutze den Reiter <strong>Spieler</strong>.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="tab-content" id="tab-player">
+                <div class="card-grid">
+                    <article class="menu-card">
+                        <h2>Fahndungslevel</h2>
+                        <div class="input-stack">
+                            <input id="wanted-level" class="menu-input" type="range" min="0" max="5" step="1" value="0">
+                            <p id="wanted-level-label">Aktuelles Ziel: 0 Sterne</p>
+                            <div class="button-row">
+                                <button id="set-wanted" class="action-button" type="button">Wanted setzen</button>
+                                <button id="clear-wanted" class="action-button secondary" type="button">Wanted 0</button>
+                                <button id="max-wanted" class="action-button secondary" type="button">Wanted 5</button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="menu-card">
+                        <h2>Fortbewegung</h2>
+                        <button class="action-button" data-action="tpWaypoint" type="button">Teleport zum Wegpunkt</button>
+                        <label class="toggle-row">
+                            <span>Super Jump</span>
+                            <input id="toggle-super-jump" type="checkbox">
+                        </label>
+                        <label class="toggle-row">
+                            <span>Fast Run</span>
+                            <input id="toggle-fast-run" type="checkbox">
+                        </label>
                     </article>
                 </div>
             </section>
 
             <section class="tab-content" id="tab-vehicle">
-                <article class="menu-card">
-                    <h2>Fahrzeug spawnen</h2>
-                    <div class="input-stack">
-                        <input id="vehicle-search" class="menu-input" type="text" placeholder="Suche Modell (z. B. adder)">
-                        <select id="vehicle-select" class="menu-select"></select>
-                        <button id="spawn-vehicle" class="action-button" type="button">Spawn</button>
-                    </div>
-                </article>
+                <div class="card-grid">
+                    <article class="menu-card">
+                        <h2>Fahrzeug spawnen</h2>
+                        <div class="input-stack">
+                            <input id="vehicle-search" class="menu-input" type="text" placeholder="Suche Modell (z. B. adder)">
+                            <select id="vehicle-select" class="menu-select"></select>
+                            <button id="spawn-vehicle" class="action-button" type="button">Spawn</button>
+                        </div>
+                    </article>
+
+                    <article class="menu-card">
+                        <h2>Fahrzeug-Tools</h2>
+                        <div class="button-row">
+                            <button id="repair-vehicle" class="action-button" type="button">Reparieren + Waschen</button>
+                            <button id="flip-vehicle" class="action-button secondary" type="button">Fahrzeug umdrehen</button>
+                            <button id="max-tune-vehicle" class="action-button secondary" type="button">Instant Max Tuning</button>
+                        </div>
+                        <label class="toggle-row">
+                            <span>Vehicle Godmode</span>
+                            <input id="toggle-vehicle-godmode" type="checkbox">
+                        </label>
+                    </article>
+                </div>
             </section>
 
             <section class="tab-content" id="tab-weapons">
-                <article class="menu-card">
-                    <h2>Waffen geben</h2>
-                    <div class="input-stack">
-                        <input id="weapon-search" class="menu-input" type="text" placeholder="Suche Waffe">
-                        <select id="weapon-select" class="menu-select"></select>
-                        <button id="give-weapon" class="action-button" type="button">Waffe geben</button>
-                    </div>
-                    <button class="action-button secondary" data-action="giveAllWeapons" type="button">Alle Waffen geben</button>
-                </article>
+                <div class="card-grid">
+                    <article class="menu-card">
+                        <h2>Waffen geben</h2>
+                        <div class="input-stack">
+                            <input id="weapon-search" class="menu-input" type="text" placeholder="Suche Waffe">
+                            <select id="weapon-select" class="menu-select"></select>
+                            <button id="give-weapon" class="action-button" type="button">Waffe geben</button>
+                        </div>
+                        <button class="action-button secondary" data-action="giveAllWeapons" type="button">Alle Waffen geben</button>
+                    </article>
+
+                    <article class="menu-card">
+                        <h2>Kampf-Modifikatoren</h2>
+                        <label class="toggle-row">
+                            <span>Explosivmunition</span>
+                            <input id="toggle-explosive-ammo" type="checkbox">
+                        </label>
+                        <label class="toggle-row">
+                            <span>Feuermunition</span>
+                            <input id="toggle-fire-ammo" type="checkbox">
+                        </label>
+                        <label class="toggle-row">
+                            <span>No Reload</span>
+                            <input id="toggle-no-reload" type="checkbox">
+                        </label>
+                    </article>
+                </div>
             </section>
 
             <section class="tab-content" id="tab-world">
@@ -94,6 +164,29 @@
                             <button id="set-time-custom" class="action-button secondary" type="button">Übernehmen</button>
                         </div>
                         <p id="world-status">Aktuell: --:-- / ---</p>
+                    </article>
+                </div>
+            </section>
+
+            <section class="tab-content" id="tab-chaos">
+                <div class="card-grid">
+                    <article class="menu-card">
+                        <h2>Bodyguards</h2>
+                        <div class="input-stack">
+                            <select id="bodyguard-model" class="menu-select">
+                                <option value="s_m_y_blackops_01">Merryweather (Black Ops)</option>
+                                <option value="g_m_y_famfor_01">Families Gang</option>
+                                <option value="g_m_y_ballaeast_01">Ballas Gang</option>
+                                <option value="s_m_y_swat_01">SWAT</option>
+                            </select>
+                            <select id="bodyguard-count" class="menu-select">
+                                <option value="1">1 Bodyguard</option>
+                                <option value="2">2 Bodyguards</option>
+                                <option value="3" selected>3 Bodyguards</option>
+                            </select>
+                            <button id="spawn-bodyguards" class="action-button" type="button">Bodyguards spawnen</button>
+                            <button id="clear-bodyguards" class="action-button secondary" type="button">Bodyguards entfernen</button>
+                        </div>
                     </article>
                 </div>
             </section>

@@ -16,9 +16,22 @@ Ziel: GTA V Singleplayer-Feeling mit lebendiger Welt, aktivem Dispatch-System un
 - Spieler heilen (volle Gesundheit + 100 Armor)
 - Unverwundbarkeit (Toggle)
 - Unlimited Ammo (Toggle)
+- Wanted Level steuern (0-5 Sterne)
+- Teleport zum Waypoint
+- Super Jump (Toggle)
+- Fast Run (Toggle)
+- Unsichtbarkeit (Toggle)
 - Waffen geben (einzeln oder alle)
+- Explosive Ammo (Toggle)
+- Fire Ammo (Toggle)
+- No Reload (Toggle)
 - Serverweites Wetter setzen
 - Serverweite Uhrzeit setzen
+- Fahrzeug reparieren & waschen
+- Vehicle Godmode (Toggle)
+- Fahrzeug flippen
+- Instant Max Tuning
+- Bodyguards (1-3 NPC-Beschuetzer)
 - Ped-System:
   - Auswahl aus GTA V Standard-Peds (inkl. Tiere)
   - Freemode Male/Female bewusst ausgeschlossen
@@ -79,12 +92,25 @@ resources/
   - Heilen (HP + Armor)
   - Unverwundbarkeit Toggle
   - Unlimited Ammo Toggle
+  - Super Jump Toggle
+  - Fast Run Toggle
+  - Unsichtbarkeit Toggle
+  - Wanted 0 Sterne / Wanted 5 Sterne
+  - Teleport zum Waypoint
+  - Bodyguards (1 / 2 / 3)
   - Alle Waffen geben
 - **Fahrzeuge**
   - Fahrzeug aus Preset-Liste suchen und spawnen
+  - Fahrzeug reparieren & waschen
+  - Vehicle Godmode Toggle
+  - Fahrzeug flippen
+  - Instant Max Tuning
 - **Waffen**
   - Einzelne Waffe suchen und geben
   - Alle Waffen geben
+  - Explosive Ammo Toggle
+  - Fire Ammo Toggle
+  - No Reload Toggle
 - **Welt**
   - Wetter per Auswahl setzen
   - Uhrzeit per Preset oder Custom HH:MM setzen
@@ -101,6 +127,9 @@ resources/
 - Fahrzeug-Spawn ersetzt das vorherige Sandbox-Spawnfahrzeug, um Fahrzeug-Spam zu vermeiden.
 - Wetter-/Zeit-Updates besitzen ein serverseitiges Rate-Limit pro Spieler (Anti-Spam).
 - Unlimited Ammo laeuft nicht mehr per Frame-Loop, sondern per 500ms-Waffenwechsel-Check.
+- Weapon FX (Explosive/Fire) und No Reload werden als lokale Kampf-Modifier verarbeitet.
+- Vehicle Godmode und Player Movement Cheats (Super Jump/Fast Run/Invisible) laufen als lokale Toggles.
+- Bodyguards werden als bewaffnete NPC-Beschuetzer in der Naehe des Spielers erzeugt und verfolgen den Spieler.
 
 ## Naechste sinnvolle Erweiterungen
 
