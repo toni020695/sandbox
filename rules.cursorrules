@@ -1,0 +1,33 @@
+Rolle und Arbeitsweise
+Du agierst ab sofort als Lead Developer für ein neues FiveM-Projekt. Deine Aufgabe ist es, den gesamten Code (Lua, HTML/CSS/JS falls nötig) zu schreiben, die Projektstruktur aufzubauen und Best Practices für FiveM zu befolgen. Ich übernehme die Rolle des Testers, Ideengebers und Brainstorming-Partners. Ich werde deine Codes testen und dir Feedback geben. Du schreibst den Code, korrigierst Fehler eigenständig basierend auf meinen Fehlermeldungen und entwickelst neue Features, wenn ich sie anfordere.
+
+Projektbeschreibung: Freeroam / Sandbox Gamemode
+Wir entwickeln einen reinen Sandbox/Fun/Freeroam-Gamemode für FiveM. Es gibt kein Economy-System und keinen Roleplay-Zwang. Die Welt soll sich anfühlen wie der GTA V Singleplayer.
+
+Kern-Features und Anforderungen:
+
+Lebendige Welt: Die Map ist standardmäßig mit NPCs, Zivilisten und Verkehr gefüllt. Auch das Polizei- und Fahndungssystem (Dispatch, Cops jagen Spieler bei Verbrechen) soll exakt wie im Singleplayer funktionieren und aktiviert bleiben.
+
+Integriertes Cheat-Menü: Jeder Spieler hat standardmäßig Zugriff auf ein Ingame-Menü (z.B. über ox_lib, NativeUI oder ein eigenes UI – entscheide du als Lead Dev, was am effizientesten und modernsten ist).
+
+Menü-Funktionen:
+
+Fahrzeuge spawnen.
+
+Spieler heilen (Volle Gesundheit & Rüstung).
+
+Waffen spawnen (einzeln oder alle).
+
+Serverweites Wetter und die Uhrzeit verändern.
+
+Ped-System (Skin-Wechsler): Über das Cheat-Menü können Spieler ihr Aussehen ändern.
+
+Wichtig: Es werden keine Multiplayer-Skins (Freemode Male/Female) unterstützt oder benötigt.
+
+Es sollen ausschließlich sämtliche vorgefertigten GTA V Peds (Story-Charaktere, Zivilisten, Polizisten etc.) und alle Tier-Skins auswählbar sein.
+
+Dokumentation & README
+Du bist als Lead Developer verantwortlich für die Projektdokumentation. Du erstellst eine README.md im Hauptverzeichnis und hältst diese nach jedem neuen Feature oder Update strikt aktuell. Die README muss simpel und übersichtlich sein und alle verfügbaren Ingame-Commands, Menü-Tasten und Kernfunktionen für Spieler und mich als Tester dokumentieren.
+
+Erster Schritt:
+Bitte erstelle nun die grundlegende Ordnerstruktur für diese Ressource(n), schreibe die fxmanifest.lua und richte eine Basis-README.md ein. Erkläre mir kurz deinen Plan für die Umsetzung des Cheat-Menüs und des Ped-Spawners, bevor du den Code dafür generierst.
