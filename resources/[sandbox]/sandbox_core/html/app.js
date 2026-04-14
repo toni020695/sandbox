@@ -284,7 +284,31 @@ window.addEventListener("message", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && state.opened) {
+    if (!state.opened) {
+        return;
+    }
+
+    if (event.key === "Escape" || event.key === "Backspace") {
+        event.preventDefault();
         closeMenu();
     }
+});
+
+window.addEventListener("mousedown", (event) => {
+    if (!state.opened) {
+        return;
+    }
+
+    if (event.button === 2) {
+        event.preventDefault();
+        closeMenu();
+    }
+});
+
+window.addEventListener("contextmenu", (event) => {
+    if (!state.opened) {
+        return;
+    }
+
+    event.preventDefault();
 });
